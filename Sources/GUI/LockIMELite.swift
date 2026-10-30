@@ -198,38 +198,16 @@ struct ContentView: View {
 
     var body: some View {
         Form {
-            Section("状态") {
-                Toggle("启用 LockIME-lite", isOn: Binding(
-                    get: { config.enabled },
-                    set: { config.enabled = $0; ConfigStore.save(config) }
-                ))
-                LabeledContent("当前输入法", value: currentName)
-                LabeledContent("生效次数", value: "\(activations)")
-                if backoffActive {
-                    Label("检测到冲突，已暂停强制锁定", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                }
-                if !running {
-                    Text("常驻服务未运行，开关暂不会生效。")
-                        .font(.caption)
+            Section("常驻后台服务") {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 8, height: 8)
+                    Text("状态")
+                    Spacer()
+                    Text(serviceStatusText)
                         .foregroundStyle(.secondary)
                 }
-            }
-
-            Section("锁定目标") {
-                Picker("输入法", selection: Binding(
-                    get: { config.targetID ?? "" },
-                    set: { config.targetID = $0.isEmpty ? nil : $0; ConfigStore.save(config) }
-                )) {
-                    Text("未选择").tag("")
-                    ForEach(sources) { s in
-                        Text(s.name).tag(s.id)
-                    }
-                }
-            }
-
-            Section("常驻后台服务") {
-                LabeledContent("状态", value: serviceStatusText)
                 HStack {
                     if !installed {
                         Button("安装并启动") { installService() }
@@ -245,9 +223,57 @@ struct ContentView: View {
                         Button("卸载", role: .destructive) { uninstallService() }
                     }
                 }
-                Text("安装后由系统接管：登录自动启动、后台静默运行、崩溃自动重启。")
+                Text("安装后由系统接管：登录自动启动、后台静默运行、崩溃自动重启。\n「停止」只在本次登录生效，下次登录仍会自动启动；要彻底移除请用「卸载」。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("输入法锁定") {
+                Toggle("启用输入法锁定", isOn: Binding(
+                    get: { config.enabled },
+                    set: { config.enabled = $0; ConfigStore.save(config) }
+                ))
+                .disabled(!running)
+                Text("临时的策略开关：关闭后仍可自由切换输入法，常驻服务继续在后台待命、随时秒级恢复。要彻底停掉进程请用上面的「停止 / 卸载」。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                LabeledContent("当前输入法", value: currentName)
+                LabeledContent("生效次数", value: running ? "\(activations)" : "—")
+
+                if backoffActive && running {
+                    Label("检测到冲突，已暂停强制锁定", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+                if !installed {
+                    HStack {
+                        Label("常驻服务尚未安装，上方开关暂不可用", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Button("安装并启动") { installService() }
+                            .buttonStyle(.link)
+                    }
+                } else if !running {
+                    HStack {
+                        Label("常驻服务已停止，上方开关暂不可用", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Button("立即启动") { startService() }
+                            .buttonStyle(.link)
+                    }
+                }
+            }
+
+            Section("锁定目标") {
+                Picker("输入法", selection: Binding(
+                    get: { config.targetID ?? "" },
+                    set: { config.targetID = $0.isEmpty ? nil : $0; ConfigStore.save(config) }
+                )) {
+                    Text("未选择").tag("")
+                    ForEach(sources) { s in
+                        Text(s.name).tag(s.id)
+                    }
+                }
             }
 
             if let errorMessage {
@@ -271,9 +297,14 @@ struct ContentView: View {
         }
     }
 
+    var statusColor: Color {
+        if !installed { return .secondary }
+        return running ? .green : .orange
+    }
+
     var serviceStatusText: String {
         if !installed { return "未安装" }
-        return running ? "运行中" : "已安装（未运行）"
+        return running ? "运行中" : "已停止（本次登录不再生效）"
     }
 
     func refreshAll() {
