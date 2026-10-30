@@ -30,6 +30,15 @@ open build/LockIME-lite.app
 
 要求：macOS 14+，Xcode Command Line Tools（clang / swiftc）。
 
+```sh
+./build.sh 1.0.0        # 额外产出 dist/LockIME-lite-1.0.0.dmg
+```
+
+## 许可与署名
+
+LockIME-lite 是对 LockIME 的衍生作品，整体以 **GPL-3.0** 发布。
+应用图标沿用 LockIME 的 `AppIcon.icns`（同属 GPL-3.0，未修改），署名与来源见 `ATTRIBUTION.md`。
+
 ## 使用
 
 1. 打开 GUI，选择锁定目标输入法，打开「启用」开关。
